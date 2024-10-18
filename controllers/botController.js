@@ -8,18 +8,47 @@ const startNewBot = async (req, res) => {
   try {
     // Start the bot and store info if it's a new bot
     await startBot(token);
-    res.status(201).json({ message: 'Bot started successfully.' });
+
+    // Retrieve the bot details from the database
+    const botDetails = await Bot.findOne({ token });
+
+    if (botDetails) {
+      res.status(201).json({
+        message: 'Bot started successfully.',
+        botDetails: {
+          botName: botDetails.botName,
+          botAvatar: botDetails.botAvatar,
+          botId: botDetails.botId,
+          botTag: botDetails.botTag,
+        },
+      });
+    } else {
+      res.status(404).json({ error: 'Bot details not found.' });
+    }
   } catch (err) {
     res.status(500).json({ error: 'Failed to start bot.' });
   }
 };
 
 // List all active bots
-const listActiveBots = (req, res) => {
-  const activeBots = getActiveBots();
-  res.status(200).json({ activeBots });
+const listActiveBots = async (req, res) => {
+  try {
+    const activeBots = getActiveBots();
+    const detailedActiveBots = await Promise.all(activeBots.map(async (token) => {
+      const botDetails = await Bot.findOne({ token });
+      return {
+        token,
+        botName: botDetails.botName,
+        botAvatar: botDetails.botAvatar,
+        botId: botDetails.botId,
+        botTag: botDetails.botTag,
+      };
+    }));
+    res.status(200).json({ activeBots: detailedActiveBots });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve active bots.' });
+  }
 };
-
 // Stop an existing bot
 const stopExistingBot = async (req, res) => {
   const { token } = req.body;
